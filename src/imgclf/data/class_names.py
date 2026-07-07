@@ -1,0 +1,126 @@
+"""Human-readable class names for Oxford Flowers-102.
+
+torchvision returns integer labels ``0..101`` only, so this module supplies the
+canonical common names (the widely used ``cat_to_name`` mapping) indexed by the
+zero-based label. Having readable names makes per-class metric tables and
+Grad-CAM titles legible instead of a wall of integers.
+"""
+
+from __future__ import annotations
+
+# Index i holds the name for the zero-based torchvision label i
+# (i.e. the (i+1)-th flower in the original 1-based Oxford numbering).
+CLASS_NAMES: tuple[str, ...] = (
+    "pink primrose",
+    "hard-leaved pocket orchid",
+    "canterbury bells",
+    "sweet pea",
+    "english marigold",
+    "tiger lily",
+    "moon orchid",
+    "bird of paradise",
+    "monkshood",
+    "globe thistle",
+    "snapdragon",
+    "colt's foot",
+    "king protea",
+    "spear thistle",
+    "yellow iris",
+    "globe-flower",
+    "purple coneflower",
+    "peruvian lily",
+    "balloon flower",
+    "giant white arum lily",
+    "fire lily",
+    "pincushion flower",
+    "fritillary",
+    "red ginger",
+    "grape hyacinth",
+    "corn poppy",
+    "prince of wales feathers",
+    "stemless gentian",
+    "artichoke",
+    "sweet william",
+    "carnation",
+    "garden phlox",
+    "love in the mist",
+    "mexican aster",
+    "alpine sea holly",
+    "ruby-lipped cattleya",
+    "cape flower",
+    "great masterwort",
+    "siam tulip",
+    "lenten rose",
+    "barbeton daisy",
+    "daffodil",
+    "sword lily",
+    "poinsettia",
+    "bolero deep blue",
+    "wallflower",
+    "marigold",
+    "buttercup",
+    "oxeye daisy",
+    "common dandelion",
+    "petunia",
+    "wild pansy",
+    "primula",
+    "sunflower",
+    "pelargonium",
+    "bishop of llandaff",
+    "gaura",
+    "geranium",
+    "orange dahlia",
+    "pink-yellow dahlia",
+    "cautleya spicata",
+    "japanese anemone",
+    "black-eyed susan",
+    "silverbush",
+    "californian poppy",
+    "osteospermum",
+    "spring crocus",
+    "bearded iris",
+    "windflower",
+    "tree poppy",
+    "gazania",
+    "azalea",
+    "water lily",
+    "rose",
+    "thorn apple",
+    "morning glory",
+    "passion flower",
+    "lotus",
+    "toad lily",
+    "anthurium",
+    "frangipani",
+    "clematis",
+    "hibiscus",
+    "columbine",
+    "desert-rose",
+    "tree mallow",
+    "magnolia",
+    "cyclamen",
+    "watercress",
+    "canna lily",
+    "hippeastrum",
+    "bee balm",
+    "ball moss",
+    "foxglove",
+    "bougainvillea",
+    "camellia",
+    "mallow",
+    "mexican petunia",
+    "bromelia",
+    "blanket flower",
+    "trumpet creeper",
+    "blackberry lily",
+)
+
+NUM_CLASSES = len(CLASS_NAMES)
+assert NUM_CLASSES == 102, f"expected 102 class names, got {NUM_CLASSES}"
+
+
+def class_name(label: int) -> str:
+    """Return the flower name for a zero-based label."""
+    if not 0 <= label < NUM_CLASSES:
+        raise IndexError(f"label {label} out of range [0, {NUM_CLASSES})")
+    return CLASS_NAMES[label]

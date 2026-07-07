@@ -12,12 +12,13 @@ venv/
 env/
 .env
 
-# Data and model artifacts (downloaded / generated, not versioned)
-data/
-checkpoints/
+# Data and model artifacts (downloaded / generated, not versioned).
+# Anchored to the repo root so the src/imgclf/data package is NOT ignored.
+/data/
+/checkpoints/
+/features_cache/
 *.pt
 *.pth
-features_cache/
 
 # Test / coverage
 .pytest_cache/
