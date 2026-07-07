@@ -1,0 +1,11 @@
+torch==2.6.0
+torchvision==0.21.0
+numpy==1.26.4
+scikit-learn==1.5.2
+matplotlib==3.9.2
+Pillow==10.4.0
+click==8.1.7
+tqdm==4.66.5
+PyYAML==6.0.2
+pytest==7.4.4
+pytest-cov==6.0.0

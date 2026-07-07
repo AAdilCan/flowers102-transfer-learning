@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+env/
+.env
+
+# Data and model artifacts (downloaded / generated, not versioned)
+data/
+checkpoints/
+*.pt
+*.pth
+features_cache/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# AI assistant artifacts
+.claude/
+CLAUDE.md

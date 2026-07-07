@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flowers102-transfer-learning"
+version = "0.1.0"
+description = "Transfer-learning image classifier on Oxford Flowers-102 with cached-feature linear probing and end-to-end fine-tuning"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Asım Adil Can", email = "adilcan007@gmail.com" }]
+license = { text = "MIT" }
+dependencies = [
+    "torch>=2.5",
+    "torchvision>=0.20",
+    "numpy>=1.26",
+    "scikit-learn>=1.5",
+    "matplotlib>=3.9",
+    "Pillow>=10.4",
+    "click>=8.1",
+    "tqdm>=4.66",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-cov>=6.0"]
+
+[project.scripts]
+imgclf = "imgclf.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# Import from src/ without relying on an editable install being present.
+# The conda base env does not always process the .pth of an editable install,
+# so pytest resolves the package straight from the source tree instead.
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["imgclf"]
+omit = ["*/__init__.py"]
