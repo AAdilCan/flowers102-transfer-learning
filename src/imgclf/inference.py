@@ -70,6 +70,16 @@ def top_k_accuracy(logits: torch.Tensor, labels: torch.Tensor, k: int = 1) -> fl
     return hits.float().mean().item()
 
 
+def load_image_tensor(
+    image_path: str | Path, *, image_size: int = 224, device: torch.device | None = None
+) -> torch.Tensor:
+    """Read an image file and return the normalised ``(1, 3, H, W)`` model input."""
+    transform = build_eval_transform(image_size)
+    image = Image.open(image_path).convert("RGB")
+    tensor = transform(image).unsqueeze(0)
+    return tensor if device is None else tensor.to(device)
+
+
 @torch.no_grad()
 def predict_image(
     model: TransferModel,
@@ -81,9 +91,7 @@ def predict_image(
 ) -> Prediction:
     """Classify one image file and return its top-``k`` predictions."""
     model.eval()
-    transform = build_eval_transform(image_size)
-    image = Image.open(image_path).convert("RGB")
-    tensor = transform(image).unsqueeze(0).to(device)
+    tensor = load_image_tensor(image_path, image_size=image_size, device=device)
     probs = model(tensor).softmax(dim=1).squeeze(0)
     top = probs.topk(min(top_k, probs.numel()))
     labels = top.indices.tolist()

@@ -16,11 +16,15 @@ import click
 from .config import SUPPORTED_BACKBONES, Config
 from .data import build_dataloaders
 from .eval import build_report
+from .data.class_names import class_name
 from .inference import (
     collect_predictions,
+    load_image_tensor,
     load_model_from_checkpoint,
     predict_image,
 )
+from .interpret import explain as gradcam_explain
+from .interpret import save_gradcam_panel
 from .reporting import write_figures
 from .logging_utils import configure_logging
 from .training import train_from_config
@@ -121,6 +125,27 @@ def predict(checkpoint, image_path, top_k):
     )
     for name, prob in zip(result.names, result.probs):
         click.echo(f"{prob:6.2%}  {name}")
+
+
+@cli.command()
+@click.option("--checkpoint", type=click.Path(exists=True), required=True)
+@click.option("--image", "image_path", type=click.Path(exists=True), required=True)
+@click.option("--output", type=click.Path(), default="gradcam.png",
+              help="Where to write the image/heatmap panel.")
+@click.option("--class-index", type=int, default=None,
+              help="Explain this class instead of the predicted one.")
+def explain(checkpoint, image_path, output, class_index):
+    """Write a Grad-CAM panel showing where the model looked for one image."""
+    device = resolve_device("auto")
+    model, cfg = load_model_from_checkpoint(checkpoint, device)
+    tensor = load_image_tensor(image_path, image_size=cfg.data.image_size, device=device)
+
+    cam, label, prob = gradcam_explain(
+        model, tensor, backbone_name=cfg.model.backbone, class_idx=class_index
+    )
+    title = f"{class_name(label)} ({prob:.1%})"
+    save_gradcam_panel([tensor.detach().cpu()], [cam], [title], output)
+    click.echo(f"{title} -> {output}")
 
 
 if __name__ == "__main__":

@@ -63,5 +63,68 @@ def test_cli_train_evaluate_predict(tmp_path, fake_flowers) -> None:
 def test_cli_help() -> None:
     result = CliRunner().invoke(cli, ["--help"])
     assert result.exit_code == 0
-    for command in ("train", "evaluate", "predict"):
+    for command in ("train", "evaluate", "predict", "explain"):
         assert command in result.output
+
+
+def _train_once(runner: CliRunner, tmp_path) -> str:
+    """Train the tiny config and return the checkpoint path."""
+    config_path = tmp_path / "cfg.yaml"
+    _write_config(config_path, tmp_path)
+    result = runner.invoke(cli, ["train", "--config", str(config_path), "--no-download"])
+    assert result.exit_code == 0, result.output
+    return str(tmp_path / "ckpt" / "best.pt")
+
+
+def test_cli_evaluate_writes_a_full_report(tmp_path, fake_flowers) -> None:
+    runner = CliRunner()
+    ckpt = _train_once(runner, tmp_path)
+    report_dir = tmp_path / "reports"
+
+    result = runner.invoke(
+        cli,
+        [
+            "evaluate", "--checkpoint", ckpt, "--split", "val", "--no-download",
+            "--report-dir", str(report_dir),
+            "--history", str(tmp_path / "ckpt" / "history.json"),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    for name in (
+        "metrics_val.json", "per_class_val.csv", "confusion_val.npy",
+        "confusion_val.png", "worst_classes_val.png", "topk_val.png",
+        "reliability_val.png", "training_curves.png",
+    ):
+        assert (report_dir / name).exists(), f"missing {name}"
+
+
+def test_cli_evaluate_can_skip_figures(tmp_path, fake_flowers) -> None:
+    runner = CliRunner()
+    ckpt = _train_once(runner, tmp_path)
+    report_dir = tmp_path / "reports"
+
+    result = runner.invoke(
+        cli,
+        ["evaluate", "--checkpoint", ckpt, "--split", "val", "--no-download",
+         "--report-dir", str(report_dir), "--no-figures"],
+    )
+    assert result.exit_code == 0, result.output
+    assert (report_dir / "metrics_val.json").exists()
+    assert not list(report_dir.glob("*.png"))
+
+
+def test_cli_explain_writes_a_panel(tmp_path, fake_flowers) -> None:
+    runner = CliRunner()
+    ckpt = _train_once(runner, tmp_path)
+
+    img_path = tmp_path / "q.png"
+    Image.new("RGB", (90, 90), color=(200, 40, 90)).save(img_path)
+    output = tmp_path / "cam.png"
+
+    result = runner.invoke(
+        cli,
+        ["explain", "--checkpoint", ckpt, "--image", str(img_path), "--output", str(output)],
+    )
+    assert result.exit_code == 0, result.output
+    assert output.exists() and output.stat().st_size > 0
