@@ -34,6 +34,16 @@ class DataConfig:
     # are never estimated from a single-sample batch.
     drop_last: bool = True
 
+    def __post_init__(self) -> None:
+        # Catching these here beats a shape error thrown deep inside a
+        # DataLoader worker twenty minutes into a run.
+        if self.image_size < 32:
+            raise ValueError(f"image_size must be >= 32, got {self.image_size}")
+        if self.batch_size < 1:
+            raise ValueError(f"batch_size must be >= 1, got {self.batch_size}")
+        if self.num_workers < 0:
+            raise ValueError(f"num_workers must be >= 0, got {self.num_workers}")
+
 
 @dataclass
 class AugmentationConfig:
@@ -45,6 +55,16 @@ class AugmentationConfig:
     random_resized_crop: bool = True
     # Lower bound of the area fraction kept by RandomResizedCrop.
     crop_scale_min: float = 0.6
+
+    def __post_init__(self) -> None:
+        if not 0.0 < self.crop_scale_min <= 1.0:
+            raise ValueError(
+                f"crop_scale_min must be in (0, 1], got {self.crop_scale_min}"
+            )
+        if self.rotation_degrees < 0:
+            raise ValueError(f"rotation_degrees must be >= 0, got {self.rotation_degrees}")
+        if self.color_jitter < 0:
+            raise ValueError(f"color_jitter must be >= 0, got {self.color_jitter}")
 
 
 @dataclass
@@ -68,6 +88,10 @@ class ModelConfig:
             raise ValueError(
                 f"mode must be 'linear_probe' or 'finetune', got {self.mode!r}"
             )
+        if self.num_classes < 2:
+            raise ValueError(f"num_classes must be >= 2, got {self.num_classes}")
+        if not 0.0 <= self.dropout < 1.0:
+            raise ValueError(f"dropout must be in [0, 1), got {self.dropout}")
 
 
 @dataclass
@@ -82,6 +106,26 @@ class OptimConfig:
     label_smoothing: float = 0.1
     early_stopping_patience: int = 7
     grad_clip_norm: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.epochs < 1:
+            raise ValueError(f"epochs must be >= 1, got {self.epochs}")
+        if self.lr <= 0:
+            raise ValueError(f"lr must be > 0, got {self.lr}")
+        if self.weight_decay < 0:
+            raise ValueError(f"weight_decay must be >= 0, got {self.weight_decay}")
+        if not 0.0 <= self.min_lr_factor <= 1.0:
+            raise ValueError(f"min_lr_factor must be in [0, 1], got {self.min_lr_factor}")
+        if not 0.0 <= self.label_smoothing < 1.0:
+            raise ValueError(
+                f"label_smoothing must be in [0, 1), got {self.label_smoothing}"
+            )
+        if self.early_stopping_patience < 1:
+            raise ValueError(
+                f"early_stopping_patience must be >= 1, got {self.early_stopping_patience}"
+            )
+        if self.grad_clip_norm is not None and self.grad_clip_norm <= 0:
+            raise ValueError(f"grad_clip_norm must be > 0, got {self.grad_clip_norm}")
 
 
 @dataclass
