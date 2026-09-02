@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import textwrap
 from pathlib import Path
 from typing import Sequence
 
@@ -64,12 +65,14 @@ def save_gradcam_panel(
         raise ValueError("nothing to plot")
 
     rows = len(images)
-    fig, axes = plt.subplots(rows, 2, figsize=(6.2, 3.1 * rows), squeeze=False)
+    fig, axes = plt.subplots(rows, 2, figsize=(6.4, 3.35 * rows), squeeze=False)
     for row, (image, cam, title) in enumerate(zip(images, cams, titles)):
         axes[row][0].imshow(denormalize(image))
-        axes[row][0].set_title(title, fontsize=9, loc="left")
+        # Class names run long ("pred grape hyacinth (98%)"), so wrap rather
+        # than let the title bleed across the neighbouring axis.
+        axes[row][0].set_title(textwrap.fill(title, 34), fontsize=8.5, loc="left")
         axes[row][1].imshow(overlay_cam(image, cam, alpha=alpha))
-        axes[row][1].set_title("Grad-CAM", fontsize=9, loc="left")
+        axes[row][1].set_title("Grad-CAM", fontsize=8.5, loc="left")
         for ax in axes[row]:
             ax.axis("off")
 
