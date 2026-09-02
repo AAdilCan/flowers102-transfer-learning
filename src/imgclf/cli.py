@@ -15,12 +15,13 @@ import click
 
 from .config import SUPPORTED_BACKBONES, Config
 from .data import build_dataloaders
+from .eval import build_report
 from .inference import (
     collect_predictions,
     load_model_from_checkpoint,
     predict_image,
-    top_k_accuracy,
 )
+from .reporting import write_figures
 from .logging_utils import configure_logging
 from .training import train_from_config
 from .utils import resolve_device
@@ -76,17 +77,35 @@ def train(config_path, backbone, mode, epochs, lr, batch_size, output_dir, data_
 @cli.command()
 @click.option("--checkpoint", type=click.Path(exists=True), required=True)
 @click.option("--split", type=click.Choice(["val", "test"]), default="test")
+@click.option("--report-dir", type=click.Path(), default=None,
+              help="Write metrics JSON, per-class CSV and figures here.")
+@click.option("--history", "history_path", type=click.Path(exists=True), default=None,
+              help="history.json from training; adds the training-curve figure.")
+@click.option("--no-figures", is_flag=True, help="Skip plotting, write metrics only.")
 @click.option("--no-download", is_flag=True)
-def evaluate(checkpoint, split, no_download):
-    """Report top-1 and top-5 accuracy for a checkpoint on a data split."""
+def evaluate(checkpoint, split, report_dir, history_path, no_figures, no_download):
+    """Score a checkpoint on a split and optionally write the full report."""
     device = resolve_device("auto")
     model, cfg = load_model_from_checkpoint(checkpoint, device)
     bundle = build_dataloaders(cfg, download=not no_download)
     loader = bundle.val if split == "val" else bundle.test
+
     logits, labels = collect_predictions(model, loader, device)
-    top1 = top_k_accuracy(logits, labels, k=1)
-    top5 = top_k_accuracy(logits, labels, k=5)
-    click.echo(f"{split}: top-1 {top1:.4f} | top-5 {top5:.4f} | n={len(labels)}")
+    report = build_report(logits, labels, split=split)
+    click.echo(report.summary_line())
+
+    if report_dir is None:
+        return
+
+    out = Path(report_dir)
+    report.save_json(out / f"metrics_{split}.json")
+    report.save_per_class_csv(out / f"per_class_{split}.csv")
+    report.save_confusion(out / f"confusion_{split}.npy")
+
+    if not no_figures:
+        write_figures(report, logits, labels, out, history_path=history_path)
+
+    click.echo(f"report written to {out}")
 
 
 @cli.command()
