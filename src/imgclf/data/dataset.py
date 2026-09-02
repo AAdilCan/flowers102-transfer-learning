@@ -39,18 +39,25 @@ class DataBundle:
         return len(self.class_names)
 
 
-def build_dataset(cfg: Config, split: str, *, download: bool = True) -> Dataset:
+def build_dataset(
+    cfg: Config, split: str, *, download: bool = True, augment: bool | None = None
+) -> Dataset:
     """Instantiate one Flowers-102 split with the appropriate transform.
 
-    The ``train`` split gets stochastic augmentation; ``val`` and ``test`` get
-    the deterministic eval pipeline.
+    By default the ``train`` split gets stochastic augmentation while ``val``
+    and ``test`` get the deterministic eval pipeline. ``augment`` overrides that
+    default, which the frozen-feature cache relies on: augmenting there would
+    freeze one arbitrary random crop per image for the whole run.
     """
     if split not in _TORCHVISION_SPLITS:
         raise ValueError(
             f"split must be one of {sorted(_TORCHVISION_SPLITS)}, got {split!r}"
         )
 
-    if split == "train":
+    if augment is None:
+        augment = split == "train"
+
+    if augment:
         transform = build_train_transform(cfg.data.image_size, cfg.augmentation)
     else:
         transform = build_eval_transform(cfg.data.image_size)
@@ -63,7 +70,9 @@ def build_dataset(cfg: Config, split: str, *, download: bool = True) -> Dataset:
     )
 
 
-def build_dataloaders(cfg: Config, *, download: bool = True) -> DataBundle:
+def build_dataloaders(
+    cfg: Config, *, download: bool = True, augment_train: bool = True
+) -> DataBundle:
     """Build train/val/test loaders from a :class:`Config`."""
     if cfg.model.num_classes != NUM_CLASSES:
         logger.warning(
@@ -72,7 +81,7 @@ def build_dataloaders(cfg: Config, *, download: bool = True) -> DataBundle:
             NUM_CLASSES,
         )
 
-    train_ds = build_dataset(cfg, "train", download=download)
+    train_ds = build_dataset(cfg, "train", download=download, augment=augment_train)
     val_ds = build_dataset(cfg, "val", download=download)
     test_ds = build_dataset(cfg, "test", download=download)
 
@@ -99,4 +108,25 @@ def build_dataloaders(cfg: Config, *, download: bool = True) -> DataBundle:
         val=val_loader,
         test=test_loader,
         class_names=CLASS_NAMES,
+    )
+
+
+def build_cache_loader(cfg: Config, split: str, *, download: bool = True) -> DataLoader:
+    """Deterministic loader used to cache frozen-backbone features.
+
+    Differs from the training loader in three ways that all matter for caching:
+    no augmentation (the features must be a stable function of the image), no
+    shuffling (features stay aligned with their labels in a readable order) and
+    ``drop_last=False`` — the training loader drops the final partial batch for
+    BatchNorm's sake, which would silently throw away up to ``batch_size - 1``
+    of the 1,020 training images before the head ever sees them.
+    """
+    dataset = build_dataset(cfg, split, download=download, augment=False)
+    return DataLoader(
+        dataset,
+        batch_size=cfg.data.batch_size,
+        num_workers=cfg.data.num_workers,
+        pin_memory=torch.cuda.is_available(),
+        shuffle=False,
+        drop_last=False,
     )

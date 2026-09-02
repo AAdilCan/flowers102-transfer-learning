@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..config import Config
-from ..data import build_dataloaders
+from ..data import build_cache_loader, build_dataloaders
 from ..logging_utils import get_logger
 from ..models import build_model
 from ..utils import resolve_device, set_seed
@@ -41,21 +41,28 @@ def train_from_config(cfg: Config, *, download: bool = True) -> TrainHistory:
     model = build_model(cfg)
 
     if cfg.model.mode == "linear_probe":
+        # Cache from deterministic, non-shuffled, non-dropping loaders rather
+        # than reusing bundle.train: see build_cache_loader for why.
         logger.info("caching backbone features for linear probe")
-        train_feats, train_labels = extract_features(model, bundle.train, device)
-        val_feats, val_labels = extract_features(model, bundle.val, device)
+        train_cache = build_cache_loader(cfg, "train", download=download)
+        val_cache = build_cache_loader(cfg, "val", download=download)
+        train_feats, train_labels = extract_features(model, train_cache, device)
+        val_feats, val_labels = extract_features(model, val_cache, device)
         train_loader = build_feature_loader(
             train_feats, train_labels, batch_size=cfg.data.batch_size, shuffle=True
         )
         val_loader = build_feature_loader(
             val_feats, val_labels, batch_size=cfg.data.batch_size, shuffle=False
         )
-        return fit(
+        history = fit(
             model, cfg, train_loader, val_loader, device,
             on_features=True, checkpoint_path=checkpoint_path,
         )
+    else:
+        history = fit(
+            model, cfg, bundle.train, bundle.val, device,
+            on_features=False, checkpoint_path=checkpoint_path,
+        )
 
-    return fit(
-        model, cfg, bundle.train, bundle.val, device,
-        on_features=False, checkpoint_path=checkpoint_path,
-    )
+    history.save(output_dir / "history.json")
+    return history

@@ -9,7 +9,8 @@ cosine schedule, early stopping and best-checkpoint tracking — is shared.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import torch
@@ -48,6 +49,27 @@ class TrainHistory:
         self.train_acc.append(train.accuracy)
         self.val_loss.append(val.loss)
         self.val_acc.append(val.accuracy)
+
+    def to_dict(self) -> dict[str, object]:
+        """Curves as plain lists, ready for JSON or the plotting helpers."""
+        return asdict(self)
+
+    def save(self, path: str | Path) -> None:
+        """Persist the curves next to the checkpoint.
+
+        Without this the per-epoch history dies with the process and the
+        training-curve plot can only be produced by retraining.
+        """
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as fh:
+            json.dump(self.to_dict(), fh, indent=2)
+        logger.info("wrote training history -> %s", path)
+
+    @classmethod
+    def load(cls, path: str | Path) -> "TrainHistory":
+        with Path(path).open("r", encoding="utf-8") as fh:
+            return cls(**json.load(fh))
 
 
 def _forward(model: TransferModel, batch: torch.Tensor, on_features: bool) -> torch.Tensor:
