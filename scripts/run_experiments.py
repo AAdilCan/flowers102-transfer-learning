@@ -79,9 +79,20 @@ def run_experiment(name: str, args: argparse.Namespace) -> dict[str, Any]:
     history_path = Path(cfg.output_dir) / "history.json"
 
     train_seconds = 0.0
-    if checkpoint.exists() and not args.force:
+    # A checkpoint alone is not proof of a finished run: the best-so-far weights
+    # are written during training, so a run killed halfway leaves a plausible
+    # best.pt behind. history.json is only written once fit() returns, which
+    # makes the pair the real completion marker.
+    completed = checkpoint.exists() and history_path.exists()
+    if completed and not args.force:
         logger.info("[%s] reusing existing checkpoint %s", name, checkpoint)
-    else:
+    elif checkpoint.exists() and not completed:
+        logger.warning(
+            "[%s] found a checkpoint with no history.json (interrupted run) - retraining",
+            name,
+        )
+
+    if not completed or args.force:
         logger.info("[%s] training %s / %s", name, cfg.model.backbone, cfg.model.mode)
         start = time.perf_counter()
         train_from_config(cfg, download=not args.no_download)
